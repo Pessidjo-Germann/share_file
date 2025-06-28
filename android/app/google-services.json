@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "673256648044",
+    "project_id": "sharefileiai",
+    "storage_bucket": "sharefileiai.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:673256648044:android:72097909e0ad04351c9749",
+        "android_client_info": {
+          "package_name": "com.share.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBqg4JRsOgUDlUYvJESmLL5soS5MskMG0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
