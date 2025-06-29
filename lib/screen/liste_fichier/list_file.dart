@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_file_downloader/flutter_file_downloader.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_file_iai/constante.dart';
@@ -321,27 +321,11 @@ class _FileListPageState extends State<FileListPage> {
               ),
               const SizedBox(height: 20),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: Colors.blue),
-                title: const Text('Galerie'),
-                onTap: () {
-                  Navigator.pop(modalContext);
-                  _pickFromGallery();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: Colors.green),
-                title: const Text('Appareil photo'),
-                onTap: () {
-                  Navigator.pop(modalContext);
-                  _pickFromCamera();
-                },
-              ),
-              ListTile(
                 leading: const Icon(Icons.file_present, color: Colors.orange),
-                title: const Text('Fichiers'),
+                title: const Text('Parcourir les fichiers'),
                 onTap: () {
                   Navigator.pop(modalContext);
-                  _pickFromGallery(); // Pour l'instant, même action que galerie
+                  _pickFile();
                 },
               ),
             ],
@@ -351,19 +335,10 @@ class _FileListPageState extends State<FileListPage> {
     );
   }
 
-  Future<void> _pickFromGallery() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      await _uploadSelectedFile(File(pickedFile.path));
-    }
-  }
-
-  Future<void> _pickFromCamera() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.camera);
-    if (pickedFile != null) {
-      await _uploadSelectedFile(File(pickedFile.path));
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles();
+    if (result != null) {
+      await _uploadSelectedFile(File(result.files.single.path!));
     }
   }
 
