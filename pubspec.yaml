@@ -51,7 +51,7 @@ dependencies:
   firebase_storage: ^12.3.1
   path: ^1.9.0
   permission_handler: ^11.3.1
-  flutter_file_downloader: ^2.0.0
+  flutter_file_downloader: ^2.1.0
   rename_app: ^1.6.1
   flutter_launcher_icons: ^0.14.1
   firebase_messaging: ^15.1.3
