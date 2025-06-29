@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:share_file_iai/widget/bouton_continuer_2.dart';
+import '../../../models/tag.dart';
+import '../../../services/tag_service.dart';
+import '../../../widgets/tag_widgets.dart';
 
 class CreateFolderForm extends StatefulWidget {
   @override
@@ -10,7 +13,9 @@ class CreateFolderForm extends StatefulWidget {
 
 class _CreateFolderFormState extends State<CreateFolderForm> {
   final TextEditingController _folderNameController = TextEditingController();
+  final TagService _tagService = TagService();
   String? _selectedCategory;
+  List<String> _selectedTagIds = [];
   bool isLoading = false;
 
   final List<String> _categories = [
@@ -19,6 +24,13 @@ class _CreateFolderFormState extends State<CreateFolderForm> {
     'Comptabilite',
     'Autre'
   ]; // Liste des catégories
+
+  @override
+  void initState() {
+    super.initState();
+    // Créer les tags par défaut lors du premier lancement
+    _tagService.createDefaultTags();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +72,38 @@ class _CreateFolderFormState extends State<CreateFolderForm> {
             },
           ),
           const SizedBox(height: 20),
+          const Text(
+            'Tags (optionnel)',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 8),
+          StreamBuilder<List<Tag>>(
+            stream: _tagService.getUserTags(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const CircularProgressIndicator();
+              }
+
+              final tags = snapshot.data ?? [];
+              if (tags.isEmpty) {
+                return const Text(
+                  'Aucun tag disponible. Créez-en un dans la section Tags.',
+                  style: TextStyle(color: Colors.grey),
+                );
+              }
+
+              return TagSelector(
+                availableTags: tags,
+                selectedTagIds: _selectedTagIds,
+                onTagsChanged: (selectedIds) {
+                  setState(() {
+                    _selectedTagIds = selectedIds;
+                  });
+                },
+              );
+            },
+          ),
+          const SizedBox(height: 20),
           isLoading
               ? const CircularProgressIndicator()
               : BottonContinuer2(
@@ -96,12 +140,16 @@ class _CreateFolderFormState extends State<CreateFolderForm> {
         await FirebaseFirestore.instance.collection('folder').add({
           'name': folderName,
           'category': category,
+          'tags': _selectedTagIds, // Ajouter les tags sélectionnés
           'createdAt': FieldValue.serverTimestamp(),
           'createdBy': user!.uid, // Ajoute l'ID de l'utilisateur créateur
         });
 
         setState(() {
           isLoading = true;
+          _folderNameController.clear();
+          _selectedCategory = null;
+          _selectedTagIds = []; // Réinitialiser les tags sélectionnés
         });
         // Fermer la modal après la création
         Navigator.pop(context);
