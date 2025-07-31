@@ -91,7 +91,7 @@ class _FileListPageState extends State<FileListPage> {
                       final file = files[index];
                       final data = file.data() as Map<String, dynamic>;
                       final fileName = data['name'] ?? 'Nom indisponible';
-                      final fileUrl = data['url'] ?? '';
+                      final path = data['path'] ?? '';
 
                       return Card(
                         margin: const EdgeInsets.all(8),
@@ -174,7 +174,7 @@ class _FileListPageState extends State<FileListPage> {
                                   _previewFile(file);
                                   break;
                                 case 'download':
-                                  _downloadFile(fileUrl, fileName);
+                                  _downloadFile(path, fileName);
                                   break;
                                 case 'share':
                                   _showShareModal(file);
@@ -303,10 +303,6 @@ class _FileListPageState extends State<FileListPage> {
   }
 
   void _previewFile(QueryDocumentSnapshot file) {
-    final data = file.data() as Map<String, dynamic>;
-    final fileName = data['name'] ?? 'Nom indisponible';
-    final fileUrl = data['url'] ?? '';
-
     // Naviguer vers la page de prévisualisation
     Navigator.push(
       context,
@@ -314,8 +310,6 @@ class _FileListPageState extends State<FileListPage> {
         builder: (context) => DocumentPreviewPage(
           folderId: widget.id,
           fileId: file.id,
-          fileName: fileName,
-          fileUrl: fileUrl,
         ),
       ),
     );
@@ -378,10 +372,6 @@ class _FileListPageState extends State<FileListPage> {
             fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
           );
 
-      final String fileUrl = Supabase.instance.client.storage
-          .from('files')
-          .getPublicUrl(supabasePath);
-
       final fileSize = file.lengthSync();
       final mimeType = lookupMimeType(file.path);
 
@@ -392,7 +382,7 @@ class _FileListPageState extends State<FileListPage> {
           .collection('files')
           .add({
         'name': fileName,
-        'url': fileUrl,
+        'path': supabasePath,
         'createdBy': user.uid,
         'uploadedAt': FieldValue.serverTimestamp(),
         'fileSize': fileSize,
@@ -464,7 +454,7 @@ class _FileListPageState extends State<FileListPage> {
   Future<void> _deleteFile(QueryDocumentSnapshot file) async {
     try {
       final data = file.data() as Map<String, dynamic>;
-      final fileUrl = data['url'] ?? '';
+      final path = data['path'] ?? '';
 
       // Delete from Firestore
       await FirebaseFirestore.instance
@@ -475,16 +465,9 @@ class _FileListPageState extends State<FileListPage> {
           .delete();
 
       // Delete from Supabase Storage
-      if (fileUrl.isNotEmpty) {
+      if (path.isNotEmpty) {
         try {
-          final bucketName = 'files';
-          final pathStartIndex =
-              fileUrl.indexOf('$bucketName/') + bucketName.length + 1;
-          final supabasePath = fileUrl.substring(pathStartIndex);
-
-          await Supabase.instance.client.storage
-              .from(bucketName)
-              .remove([supabasePath]);
+          await Supabase.instance.client.storage.from('files').remove([path]);
         } catch (e) {
           print(
               'Erreur lors de la suppression du fichier de Supabase Storage: $e');
@@ -511,54 +494,84 @@ class _FileListPageState extends State<FileListPage> {
     }
   }
 
-  Future<void> _downloadFile(String url, String fileName) async {
-    // The flutter_file_downloader package handles permissions automatically on Android
-    // and downloads to the default downloads directory.
-    final encodedUrl = Uri.encodeFull(url);
+  Future<void> _downloadFile(String path, String fileName) async {
+    if (path.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erreur: Chemin du fichier non disponible.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
 
     setState(() {
-      _progressText = 'Téléchargement en cours...';
-      progress = 0.0;
+      _progressText = 'Génération du lien de téléchargement...';
+      progress = null; // Indeterminate progress
     });
 
-    FileDownloader.downloadFile(
-      url: encodedUrl,
-      name: fileName,
-      onProgress: (fileName, progressValue) {
-        setState(() {
-          // progressValue is a percentage from 0 to 100
-          progress = progressValue / 100;
-        });
-      },
-      onDownloadCompleted: (path) {
-        setState(() {
-          progress = null;
-          _progressText = null;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Fichier téléchargé: $path'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      },
-      onDownloadError: (String error) {
-        setState(() {
-          progress = null;
-          _progressText = null;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur de téléchargement: $error'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      },
-    );
+    try {
+      final signedUrl = await Supabase.instance.client.storage
+          .from('files')
+          .createSignedUrl(path, 60); // URL valid for 60 seconds
+
+      setState(() {
+        _progressText = 'Téléchargement en cours...';
+      });
+
+      await FileDownloader.downloadFile(
+        url: signedUrl,
+        name: fileName,
+        onProgress: (fileName, progressValue) {
+          setState(() {
+            progress = progressValue / 100;
+          });
+        },
+        onDownloadCompleted: (filePath) {
+          setState(() {
+            progress = null;
+            _progressText = null;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Fichier téléchargé: $filePath'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        },
+        onDownloadError: (String error) {
+          setState(() {
+            progress = null;
+            _progressText = null;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Erreur de téléchargement: $error'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+      );
+    } catch (e) {
+      setState(() {
+        progress = null;
+        _progressText = null;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur de création du lien: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Color _getFileColor(String fileName) {
