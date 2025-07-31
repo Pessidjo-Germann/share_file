@@ -10,15 +10,11 @@ import 'package:url_launcher/url_launcher.dart';
 class DocumentPreviewPage extends StatefulWidget {
   final String folderId;
   final String fileId;
-  final String fileName;
-  final String fileUrl;
 
   const DocumentPreviewPage({
     Key? key,
     required this.folderId,
     required this.fileId,
-    required this.fileName,
-    required this.fileUrl,
   }) : super(key: key);
 
   @override
@@ -29,6 +25,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
   final DocumentPreviewService _previewService = DocumentPreviewService();
   final TagService _tagService = TagService();
   DocumentFile? _document;
+  String? _signedUrl;
   bool _isLoading = true;
   bool _isEditing = false;
   final TextEditingController _nameController = TextEditingController();
@@ -47,11 +44,45 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
   }
 
   Future<void> _loadDocument() async {
+    setState(() {
+      _isLoading = true;
+    });
     try {
       final document = await _previewService.getDocumentDetails(
           widget.folderId, widget.fileId);
+
+      if (document == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Document non trouvé.'),
+                backgroundColor: Colors.red),
+          );
+          setState(() => _isLoading = false);
+        }
+        return;
+      }
+
+      String? signedUrl;
+      if (document.path.isNotEmpty) {
+        try {
+          signedUrl = await Supabase.instance.client.storage
+              .from('files')
+              .createSignedUrl(document.path, 300); // 5 minutes
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text('Erreur de création du lien: $e'),
+                  backgroundColor: Colors.red),
+            );
+          }
+        }
+      }
+
       setState(() {
         _document = document;
+        _signedUrl = signedUrl;
         _isLoading = false;
         if (document != null) {
           _nameController.text = document.name;
@@ -62,9 +93,13 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Erreur lors du chargement du document: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -280,12 +315,29 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
   }
 
   Widget _buildPreviewContent() {
+    if (_signedUrl == null) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, color: Colors.orange, size: 48),
+            SizedBox(height: 16),
+            Text(
+              "Le lien pour ce fichier est invalide ou a expiré.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+
     switch (_document!.documentType) {
       case DocumentType.image:
         return ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Image.network(
-            _document!.url,
+            _signedUrl!,
             fit: BoxFit.cover,
             loadingBuilder: (context, child, loadingProgress) {
               if (loadingProgress == null) return child;
@@ -541,8 +593,15 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
   }
 
   Future<void> _openDocument() async {
+    if (_signedUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Le lien pour ce fichier est invalide ou a expiré.')),
+      );
+      return;
+    }
     try {
-      final uri = Uri.parse(_document!.url);
+      final uri = Uri.parse(_signedUrl!);
       if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
         throw Exception('Impossible d\'ouvrir le document');
       }
@@ -561,10 +620,17 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
   }
 
   Future<void> _copyLink() async {
-    try {
-      await _previewService.copyDocumentLink(_document!.url);
+    if (_signedUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lien copié dans le presse-papiers')),
+        const SnackBar(
+            content: Text('Le lien pour ce fichier est invalide ou a expiré.')),
+      );
+      return;
+    }
+    try {
+      await _previewService.copyDocumentLink(_signedUrl!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lien temporaire copié')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -623,11 +689,12 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
   }
 
   Future<void> _deleteDocument() async {
+    if (_document == null) return;
     try {
       await _previewService.deleteDocument(
         widget.folderId,
         widget.fileId,
-        _document!.url,
+        _document!.path,
       );
 
       Navigator.of(context).pop(); // Retourner à la page précédente

@@ -1,7 +1,7 @@
 class DocumentFile {
   final String id;
   final String name;
-  final String url;
+  final String path;
   final String folderId;
   final String createdBy;
   final DateTime uploadedAt;
@@ -14,7 +14,7 @@ class DocumentFile {
   DocumentFile({
     required this.id,
     required this.name,
-    required this.url,
+    required this.path,
     required this.folderId,
     required this.createdBy,
     required this.uploadedAt,
@@ -29,7 +29,7 @@ class DocumentFile {
     return DocumentFile(
       id: id,
       name: data['name'] ?? '',
-      url: data['url'] ?? '',
+      path: data['path'] ?? '',
       folderId: data['folderId'] ?? '',
       createdBy: data['createdBy'] ?? '',
       uploadedAt: data['uploadedAt']?.toDate() ?? DateTime.now(),
@@ -44,7 +44,7 @@ class DocumentFile {
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,
-      'url': url,
+      'path': path,
       'folderId': folderId,
       'createdBy': createdBy,
       'uploadedAt': uploadedAt,

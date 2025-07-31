@@ -74,7 +74,7 @@ class DocumentPreviewService {
 
   // Supprimer un document
   Future<void> deleteDocument(
-      String folderId, String fileId, String fileUrl) async {
+      String folderId, String fileId, String path) async {
     try {
       // Supprimer de Firestore
       await _firestore
@@ -85,21 +85,17 @@ class DocumentPreviewService {
           .delete();
 
       // Supprimer de Supabase Storage
-      if (fileUrl.isNotEmpty) {
+      if (path.isNotEmpty) {
         try {
-          final bucketName = 'files';
-          final pathStartIndex =
-              fileUrl.indexOf('$bucketName/') + bucketName.length + 1;
-          final supabasePath = fileUrl.substring(pathStartIndex);
-
-          await _supabase.storage.from(bucketName).remove([supabasePath]);
+          await _supabase.storage.from('files').remove([path]);
         } catch (e) {
+          // Log the error but don't rethrow, as the Firestore entry is already deleted.
           print(
               'Erreur lors de la suppression du fichier de Supabase Storage: $e');
         }
       }
     } catch (e) {
-      throw Exception('Erreur lors de la suppression: $e');
+      throw Exception('Erreur lors de la suppression du document: $e');
     }
   }
 
