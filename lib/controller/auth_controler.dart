@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:share_file_iai/screen/home_screen/home_screen.dart';
 import 'package:share_file_iai/widget/toast_service.dart';
 
 class AuthControler {
@@ -23,14 +25,30 @@ class AuthControler {
   }
 
   Future<void> createAccount(
-      String email, String password, BuildContext context) async {
+      String email, String password, String name, BuildContext context) async {
     try {
       UserCredential userCredential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+        'name': name,
+        'email': email,
+        'id': userCredential.user!.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (!context.mounted) return;
       // Gérer la création réussie
+      Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+              builder: (context) => HomeScreen(user: userCredential.user!)),
+          (route) => false);
     } on FirebaseAuthException catch (e) {
       if (e.code == 'weak-password') {
         ToastService.errorMessage('Le mot de passe est trop faible.', context);
