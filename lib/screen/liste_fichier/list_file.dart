@@ -586,7 +586,7 @@ class _FileListPageState extends State<FileListPage> {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     showModalBottomSheet(
-      context: context,
+      context: _scaffoldKey.currentContext!,
       builder: (BuildContext context) {
         return StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance.collection('users').snapshots(),
@@ -608,8 +608,7 @@ class _FileListPageState extends State<FileListPage> {
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Text('Partager avec',
-                          style: Theme.of(context).textTheme.headline6),
+                      child: Text('Partager avec'),
                     ),
                     Expanded(
                       child: ListView.builder(
@@ -669,7 +668,7 @@ class _FileListPageState extends State<FileListPage> {
     if (userIds.isEmpty) {
       // This case should be handled by the disabled button, but as a safeguard:
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(_scaffoldKey.currentContext!).showSnackBar(
           const SnackBar(
               content: Text('Veuillez sélectionner au moins un utilisateur.')),
         );
@@ -689,7 +688,7 @@ class _FileListPageState extends State<FileListPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(_scaffoldKey.currentContext!).showSnackBar(
           const SnackBar(
             content: Text('Fichier partagé avec succès!'),
             backgroundColor: Colors.green,
@@ -698,7 +697,7 @@ class _FileListPageState extends State<FileListPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(_scaffoldKey.currentContext!).showSnackBar(
           SnackBar(
             content: Text('Erreur lors du partage du fichier: $e'),
             backgroundColor: Colors.red,
