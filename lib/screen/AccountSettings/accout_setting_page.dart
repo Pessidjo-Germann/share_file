@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:share_file_iai/screen/connexion/connexion_screnn.dart';
 
 class AccountSettingsPage extends StatefulWidget {
   @override
@@ -71,6 +72,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      ConnexionScreen.routeName,
+      (route) => false,
+    );
   }
 
   @override
