@@ -3,13 +3,19 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:share_file_iai/screen/home_screen/home_screen.dart';
-import 'package:share_file_iai/screen/spalshscreen/spalshScreen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 
 import 'route.dart';
+import 'screen/spalshscreen/spalshScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await Supabase.initialize(
+    url: 'https://zijjdcmmnlbutbvzckme.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppampkY21tbmxidXRidnpja21lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5NDgwODUsImV4cCI6MjA2OTUyNDA4NX0.7gGaYInSAdBMxCRgZJXeQlV3h1o39x3rv7rAanK4aPg',
+  );
 
    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   runApp(const MyApp());
@@ -39,6 +45,7 @@ class MyApp extends StatelessWidget {
             if (snapshot.hasData) {
               return const HomeScreen();
             } else {
+            
               return SpalshScreen();
             }
           }),

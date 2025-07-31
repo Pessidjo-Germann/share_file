@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         CategoryFoldersPage(),
         // FolderListPage(),
-        SharedFoldersPage(currentUserId: userId),
+        SharedFoldersPage(),
         AccountSettingsPage()
       ],
     );

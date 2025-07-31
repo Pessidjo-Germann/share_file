@@ -1,13 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
 import '../models/document_file.dart';
 
 class DocumentPreviewService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final fb_auth.FirebaseAuth _auth = fb_auth.FirebaseAuth.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   // Récupérer les détails d'un document
   Future<DocumentFile?> getDocumentDetails(
@@ -84,12 +84,19 @@ class DocumentPreviewService {
           .doc(fileId)
           .delete();
 
-      // Supprimer de Firebase Storage
-      try {
-        final ref = _storage.refFromURL(fileUrl);
-        await ref.delete();
-      } catch (e) {
-        print('Erreur lors de la suppression du fichier de Storage: $e');
+      // Supprimer de Supabase Storage
+      if (fileUrl.isNotEmpty) {
+        try {
+          final bucketName = 'files';
+          final pathStartIndex =
+              fileUrl.indexOf('$bucketName/') + bucketName.length + 1;
+          final supabasePath = fileUrl.substring(pathStartIndex);
+
+          await _supabase.storage.from(bucketName).remove([supabasePath]);
+        } catch (e) {
+          print(
+              'Erreur lors de la suppression du fichier de Supabase Storage: $e');
+        }
       }
     } catch (e) {
       throw Exception('Erreur lors de la suppression: $e');
