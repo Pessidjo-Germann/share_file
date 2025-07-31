@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:share_file_iai/screen/home_screen/home_screen.dart';
 import 'package:share_file_iai/screen/inscription/InscriptionScreen.dart';
 import 'package:share_file_iai/screen/inscription/components/email_input.dart';
 import 'package:share_file_iai/screen/inscription/components/psd_input.dart';
@@ -42,7 +43,14 @@ class _BodyState extends State<Body> {
         if (!mounted) return;
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Connexion reussite')));
-
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HomeScreen(
+              user: _auth.currentUser!,
+            ),
+          ),
+        );
         // La redirection est maintenant gérée par le StreamBuilder dans main.dart
       } on FirebaseAuthException catch (e) {
         if (!mounted) return;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_file_iai/screen/connexion/connexion_screnn.dart';
 import 'package:share_file_iai/screen/inscription/InscriptionScreen.dart';
 import 'package:share_file_iai/widget/bouton_continuer.dart';
 
@@ -69,7 +70,7 @@ class _BodyState extends State<Body> {
               BoutonContinuer(
                 size: size,
                 press: () {
-                  Navigator.pushReplacementNamed(context, InscriptionScreen.routeName);
+                  Navigator.pushReplacementNamed(context, ConnexionScreen.routeName);
                 },
               ),
               const SizedBox(height: 50),
