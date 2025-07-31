@@ -145,6 +145,16 @@ class _FileListPageState extends State<FileListPage> {
                                 ),
                               ),
                               PopupMenuItem(
+                                value: 'share',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.share),
+                                    SizedBox(width: 8),
+                                    Text('Partager'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
                                 value: 'delete',
                                 child: Row(
                                   children: [
@@ -163,6 +173,9 @@ class _FileListPageState extends State<FileListPage> {
                                   break;
                                 case 'download':
                                   _downloadFile(fileUrl, fileName);
+                                  break;
+                                case 'share':
+                                  _showShareModal(file);
                                   break;
                                 case 'delete':
                                   _showDeleteConfirmation(file);
@@ -566,5 +579,132 @@ class _FileListPageState extends State<FileListPage> {
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  void _showShareModal(QueryDocumentSnapshot file) {
+    List<String> selectedUsers = [];
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('users').snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(child: Text('Erreur: ${snapshot.error}'));
+            }
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator());
+            }
+
+            final users = snapshot.data!.docs
+                .where((doc) => doc.id != currentUser?.uid)
+                .toList();
+
+            return StatefulBuilder(
+              builder: (BuildContext context, StateSetter modalState) {
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text('Partager avec',
+                          style: Theme.of(context).textTheme.headline6),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: users.length,
+                        itemBuilder: (context, index) {
+                          final user = users[index];
+                          final userId = user.id;
+                          final userName =
+                              user['name'] ?? 'Utilisateur inconnu';
+                          final isSelected = selectedUsers.contains(userId);
+
+                          return CheckboxListTile(
+                            title: Text(userName),
+                            value: isSelected,
+                            onChanged: (bool? value) {
+                              modalState(() {
+                                if (value == true) {
+                                  if (!selectedUsers.contains(userId)) {
+                                    selectedUsers.add(userId);
+                                  }
+                                } else {
+                                  selectedUsers.remove(userId);
+                                }
+                              });
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          minimumSize:
+                              Size(double.infinity, 50), // Make button wide
+                        ),
+                        onPressed: selectedUsers.isNotEmpty
+                            ? () {
+                                _shareFile(file.id, selectedUsers);
+                                Navigator.pop(context);
+                              }
+                            : null, // Disable button if no user is selected
+                        child: Text('Partager'),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _shareFile(String fileId, List<String> userIds) async {
+    if (userIds.isEmpty) {
+      // This case should be handled by the disabled button, but as a safeguard:
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Veuillez sélectionner au moins un utilisateur.')),
+        );
+      }
+      return;
+    }
+
+    try {
+      final fileRef = FirebaseFirestore.instance
+          .collection('folder')
+          .doc(widget.id)
+          .collection('files')
+          .doc(fileId);
+
+      await fileRef.update({
+        'sharedWith': FieldValue.arrayUnion(userIds),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Fichier partagé avec succès!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors du partage du fichier: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

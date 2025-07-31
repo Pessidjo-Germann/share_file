@@ -9,6 +9,7 @@ class DocumentFile {
   final String? mimeType;
   final String? thumbnailUrl;
   final List<String> tags;
+  final List<String> sharedWith;
 
   DocumentFile({
     required this.id,
@@ -21,6 +22,7 @@ class DocumentFile {
     this.mimeType,
     this.thumbnailUrl,
     this.tags = const [],
+    this.sharedWith = const [],
   });
 
   factory DocumentFile.fromFirestore(Map<String, dynamic> data, String id) {
@@ -35,6 +37,7 @@ class DocumentFile {
       mimeType: data['mimeType'],
       thumbnailUrl: data['thumbnailUrl'],
       tags: List<String>.from(data['tags'] ?? []),
+      sharedWith: List<String>.from(data['sharedWith'] ?? []),
     );
   }
 
@@ -49,6 +52,7 @@ class DocumentFile {
       'mimeType': mimeType,
       'thumbnailUrl': thumbnailUrl,
       'tags': tags,
+      'sharedWith': sharedWith,
     };
   }
 
