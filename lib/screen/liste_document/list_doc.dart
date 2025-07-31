@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_file_iai/constante.dart';
 import 'package:share_file_iai/screen/liste_fichier/list_file.dart';
-import 'package:share_file_iai/widget/bouton_continuer_2.dart';
+import 'package:share_file_iai/widget/primary_button.dart';
 import '../../models/tag.dart';
 import '../../services/tag_service.dart';
 import '../../widgets/tag_widgets.dart';
@@ -172,8 +172,7 @@ class FolderListPage extends StatelessWidget {
                   if (index == users.length) {
                     return Padding(
                       padding: const EdgeInsets.only(left: 20, right: 20),
-                      child: BottonContinuer2(
-                        size: MediaQuery.of(context).size,
+                      child: PrimaryButton(
                         color: Colors.red,
                         press: () {
                           shareFolder(folderId, context, selectedUsers);
@@ -228,8 +227,7 @@ class FolderListPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                BottonContinuer2(
-                    size: MediaQuery.of(context).size,
+                PrimaryButton(
                     press: () {
                       if (_folderNameController.text.isNotEmpty &&
                           _folderNameController.text != '') {
@@ -317,8 +315,7 @@ void _showDeleteFolder(BuildContext context, String id, String name) {
               Row(
                 children: [
                   Expanded(
-                    child: BottonContinuer2(
-                        size: MediaQuery.of(context).size,
+                    child: PrimaryButton(
                         press: () {
                           _deleteFolder(context, id);
                           Navigator.pop(context);
@@ -326,8 +323,7 @@ void _showDeleteFolder(BuildContext context, String id, String name) {
                         name: 'Oui'),
                   ),
                   Expanded(
-                    child: BottonContinuer2(
-                        size: MediaQuery.of(context).size,
+                    child: PrimaryButton(
                         color: Colors.red,
                         press: () {
                           Navigator.pop(context);

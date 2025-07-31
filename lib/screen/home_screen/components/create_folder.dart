@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:share_file_iai/widget/bouton_continuer_2.dart';
+import 'package:share_file_iai/widget/primary_button.dart';
 import '../../../models/tag.dart';
 import '../../../services/tag_service.dart';
 import '../../../widgets/tag_widgets.dart';
@@ -106,8 +106,7 @@ class _CreateFolderFormState extends State<CreateFolderForm> {
           const SizedBox(height: 20),
           isLoading
               ? const CircularProgressIndicator()
-              : BottonContinuer2(
-                  size: MediaQuery.of(context).size,
+              : PrimaryButton(
                   press: () {
                     if (_folderNameController.text.isNotEmpty &&
                         _folderNameController.text != '' &&

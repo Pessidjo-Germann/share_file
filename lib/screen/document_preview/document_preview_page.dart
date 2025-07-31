@@ -4,7 +4,7 @@ import 'package:share_file_iai/services/document_preview_service.dart';
 import 'package:share_file_iai/models/tag.dart';
 import 'package:share_file_iai/services/tag_service.dart';
 import 'package:share_file_iai/widgets/tag_widgets.dart';
-import 'package:share_file_iai/widget/bouton_continuer_2.dart';
+import 'package:share_file_iai/widget/primary_button.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class DocumentPreviewPage extends StatefulWidget {
@@ -240,16 +240,14 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
           Row(
             children: [
               Expanded(
-                child: BottonContinuer2(
-                  size: MediaQuery.of(context).size,
+                child: PrimaryButton(
                   press: _saveChanges,
                   name: 'Enregistrer',
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: BottonContinuer2(
-                  size: MediaQuery.of(context).size,
+                child: PrimaryButton(
                   press: () {
                     setState(() {
                       _isEditing = false;
