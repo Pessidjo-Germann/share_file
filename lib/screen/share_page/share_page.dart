@@ -1,7 +1,9 @@
+import 'package:flutter_file_downloader/flutter_file_downloader.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:share_file_iai/screen/shared_folder_content/shared_folder_content_page.dart';
 import 'package:share_file_iai/widgets/file_card.dart';
 
 class SharedFoldersPage extends StatefulWidget {
@@ -85,6 +87,49 @@ class _SharedWithMeView extends StatefulWidget {
 class __SharedWithMeViewState extends State<_SharedWithMeView> {
   late Stream<QuerySnapshot> _filesStream;
   late Stream<QuerySnapshot> _foldersStream;
+  final Map<String, double> _downloadProgress = {};
+
+  Future<void> _downloadFile(String url, String fileName, String fileId) async {
+    final encodedUrl = Uri.encodeFull(url);
+
+    FileDownloader.downloadFile(
+      url: encodedUrl,
+      name: fileName,
+      onProgress: (fileName, progressValue) {
+        if (mounted) {
+          setState(() {
+            _downloadProgress[fileId] = progressValue / 100;
+          });
+        }
+      },
+      onDownloadCompleted: (path) {
+        if (mounted) {
+          setState(() {
+            _downloadProgress.remove(fileId);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Fichier téléchargé: $path'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      },
+      onDownloadError: (String error) {
+        if (mounted) {
+          setState(() {
+            _downloadProgress.remove(fileId);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur de téléchargement: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -141,19 +186,44 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
             final isFile = data.containsKey('url');
 
             if (isFile) {
-              // Assurez-vous que la référence parente n'est pas nulle avant d'accéder à son ID
               final folderId = item.reference.parent.parent?.id;
               if (folderId == null) {
-                // Gérer le cas où folderId est nul, peut-être logger une erreur ou afficher un widget d'erreur
                 return ListTile(
-                  leading: Icon(Icons.error),
-                  title: Text("Erreur: Impossible de charger ce fichier."),
+                  leading: const Icon(Icons.error),
+                  title:
+                      const Text("Erreur: Impossible de charger ce fichier."),
                 );
               }
-              return FileCard(
-                fileDoc: item as QueryDocumentSnapshot<Map<String, dynamic>>,
-                folderId: folderId,
-                showActions: false,
+
+              final fileId = item.id;
+              final fileUrl = data['url'] ?? '';
+              final progress = _downloadProgress[fileId];
+
+              return Column(
+                children: [
+                  FileCard(
+                    fileDoc:
+                        item as QueryDocumentSnapshot<Map<String, dynamic>>,
+                    folderId: folderId,
+                    showActions: true, // Afficher les boutons d'action
+                    onDownload: () => _downloadFile(fileUrl, itemName, fileId),
+                  ),
+                  if (progress != null)
+                    Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                      child: Column(
+                        children: [
+                           LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: Colors.grey[300],
+                          ),
+                          const SizedBox(height: 4),
+                          Text('${(progress * 100).toStringAsFixed(0)}%'),
+                        ],
+                      ),
+                    ),
+                ],
               );
             } else {
               // C'est un dossier, utilisez le ListTile existant
@@ -161,7 +231,17 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
                 leading: Icon(Icons.folder),
                 title: Text(itemName),
                 subtitle: Text('Partagé par: $sharedByName'),
-                // Optionnel : Ajoutez un onTap pour naviguer dans les dossiers partagés
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SharedFolderContentPage(
+                        id: item.id,
+                        name: itemName,
+                      ),
+                    ),
+                  );
+                },
               );
             }
           },
@@ -182,6 +262,50 @@ class _SharedByMeView extends StatefulWidget {
 }
 
 class _SharedByMeViewState extends State<_SharedByMeView> {
+  final Map<String, double> _downloadProgress = {};
+
+  Future<void> _downloadFile(String url, String fileName, String fileId) async {
+    final encodedUrl = Uri.encodeFull(url);
+
+    FileDownloader.downloadFile(
+      url: encodedUrl,
+      name: fileName,
+      onProgress: (fileName, progressValue) {
+        if (mounted) {
+          setState(() {
+            _downloadProgress[fileId] = progressValue / 100;
+          });
+        }
+      },
+      onDownloadCompleted: (path) {
+        if (mounted) {
+          setState(() {
+            _downloadProgress.remove(fileId);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Fichier téléchargé: $path'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      },
+      onDownloadError: (String error) {
+        if (mounted) {
+          setState(() {
+            _downloadProgress.remove(fileId);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur de téléchargement: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+    );
+  }
+
   Future<void> _deleteFile(QueryDocumentSnapshot file) async {
     try {
       final data = file.data() as Map<String, dynamic>;
@@ -272,20 +396,46 @@ class _SharedByMeViewState extends State<_SharedByMeView> {
           itemCount: files.length,
           itemBuilder: (context, index) {
             final file = files[index];
+            final data = file.data() as Map<String, dynamic>;
             final folderId = file.reference.parent.parent?.id;
 
             if (folderId == null) {
-              return ListTile(
+              return const ListTile(
                 leading: Icon(Icons.error),
                 title: Text("Erreur: Impossible de charger ce fichier."),
               );
             }
 
-            return FileCard(
-              fileDoc: file as QueryDocumentSnapshot<Map<String, dynamic>>,
-              folderId: folderId,
-              showActions: true, // Les actions sont visibles
-              onDelete: () => _showDeleteConfirmation(file),
+            final fileId = file.id;
+            final fileName = data['name'] ?? 'Élément sans nom';
+            final fileUrl = data['url'] ?? '';
+            final progress = _downloadProgress[fileId];
+
+            return Column(
+              children: [
+                FileCard(
+                  fileDoc: file as QueryDocumentSnapshot<Map<String, dynamic>>,
+                  folderId: folderId,
+                  showActions: true,
+                  onDelete: () => _showDeleteConfirmation(file),
+                  onDownload: () => _downloadFile(fileUrl, fileName, fileId),
+                ),
+                if (progress != null)
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    child: Column(
+                      children: [
+                        LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 4),
+                        Text('${(progress * 100).toStringAsFixed(0)}%'),
+                      ],
+                    ),
+                  ),
+              ],
             );
           },
         );
