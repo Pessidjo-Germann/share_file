@@ -1,3 +1,4 @@
+import 'package:rxdart/rxdart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -101,7 +102,12 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<QuerySnapshot>>(
-      stream: Stream.wait([_filesStream, _foldersStream]),
+      stream:
+          Rx.combineLatest2<QuerySnapshot, QuerySnapshot, List<QuerySnapshot>>(
+        _filesStream,
+        _foldersStream,
+        (a, b) => [a, b],
+      ),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           debugPrint('Erreur: ${snapshot.error}');
@@ -116,7 +122,8 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
         final allItems = [...files, ...folders];
 
         if (allItems.isEmpty) {
-          return Center(child: Text('Aucun fichier ou dossier partagé avec vous.'));
+          return Center(
+              child: Text('Aucun fichier ou dossier partagé avec vous.'));
         }
 
         return ListView.builder(
