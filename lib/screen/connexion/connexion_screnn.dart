@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_file_iai/constante.dart';
 import 'package:share_file_iai/screen/connexion/components/body.dart';
 
 class ConnexionScreen extends StatelessWidget {
@@ -8,6 +9,7 @@ class ConnexionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
+      backgroundColor: kbackgroundColor,
       body: Body(),
     );
   }

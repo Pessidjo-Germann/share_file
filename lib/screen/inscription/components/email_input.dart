@@ -14,9 +14,9 @@ class EmailInput extends StatelessWidget {
       controller: controller,
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Please veuillez remplir ce champs';
+          return 'Veuillez remplir ce champ';
         } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-          return 'Please enter a valid email';
+          return 'Veuillez entrer un email valide';
         }
         return null;
       },
