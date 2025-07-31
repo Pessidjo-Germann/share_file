@@ -69,7 +69,7 @@ class _SharedFoldersPageState extends State<SharedFoldersPage> {
   }
 }
 
-class _SharedWithMeView extends StatelessWidget {
+class _SharedWithMeView extends StatefulWidget {
   final String currentUserId;
   final Map<String, String> usersMap;
 
@@ -77,12 +77,31 @@ class _SharedWithMeView extends StatelessWidget {
       {required this.currentUserId, required this.usersMap});
 
   @override
+  __SharedWithMeViewState createState() => __SharedWithMeViewState();
+}
+
+class __SharedWithMeViewState extends State<_SharedWithMeView> {
+  late Stream<QuerySnapshot> _filesStream;
+  late Stream<QuerySnapshot> _foldersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _filesStream = FirebaseFirestore.instance
+        .collectionGroup('files')
+        .where('sharedWith', arrayContains: widget.currentUserId)
+        .snapshots();
+
+    _foldersStream = FirebaseFirestore.instance
+        .collection('folder')
+        .where('sharedWith', arrayContains: widget.currentUserId)
+        .snapshots();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collectionGroup('files')
-          .where('sharedWith', arrayContains: currentUserId)
-          .snapshots(),
+    return StreamBuilder<List<QuerySnapshot>>(
+      stream: Stream.wait([_filesStream, _foldersStream]),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           debugPrint('Erreur: ${snapshot.error}');
@@ -91,32 +110,32 @@ class _SharedWithMeView extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
         }
-        final files = snapshot.data!.docs;
-        if (files.isEmpty) {
-          return Center(child: Text('Aucun fichier partagé avec vous.'));
+
+        final files = snapshot.data![0].docs;
+        final folders = snapshot.data![1].docs;
+        final allItems = [...files, ...folders];
+
+        if (allItems.isEmpty) {
+          return Center(child: Text('Aucun fichier ou dossier partagé avec vous.'));
         }
+
         return ListView.builder(
-          itemCount: files.length,
+          itemCount: allItems.length,
           itemBuilder: (context, index) {
-            final file = files[index];
-            final data = file.data() as Map<String, dynamic>;
-            final fileName = data['name'] ?? 'Fichier sans nom';
+            final item = allItems[index];
+            final data = item.data() as Map<String, dynamic>;
+            final itemName = data['name'] ?? 'Élément sans nom';
             final createdBy = data['createdBy'] ?? '';
-            final sharedByName = usersMap[createdBy] ?? 'Utilisateur inconnu';
-            final sharedWith = data['sharedWith'];
+            final sharedByName =
+                widget.usersMap[createdBy] ?? 'Utilisateur inconnu';
+
+            // Déterminer si c'est un fichier ou un dossier
+            final isFile = data.containsKey('url');
 
             return ListTile(
-              leading: Icon(Icons.insert_drive_file),
-              title: Text(fileName),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Partagé par: $sharedByName'),
-                  if (sharedWith != null)
-                    Text('Debug sharedWith: ${sharedWith.toString()}',
-                        style: TextStyle(fontSize: 10, color: Colors.grey)),
-                ],
-              ),
+              leading: Icon(isFile ? Icons.insert_drive_file : Icons.folder),
+              title: Text(itemName),
+              subtitle: Text('Partagé par: $sharedByName'),
             );
           },
         );
