@@ -4,6 +4,7 @@ import 'package:share_file_iai/services/document_preview_service.dart';
 import 'package:share_file_iai/models/tag.dart';
 import 'package:share_file_iai/services/tag_service.dart';
 import 'package:share_file_iai/widgets/tag_widgets.dart';
+import 'package:flutter_file_downloader/flutter_file_downloader.dart';
 import 'package:share_file_iai/widget/primary_button.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -29,6 +30,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
   String? _signedUrl;
   bool _isLoading = true;
   bool _isEditing = false;
+  double? _progress;
   final TextEditingController _nameController = TextEditingController();
   List<String> _selectedTagIds = [];
 
@@ -613,11 +615,77 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
     }
   }
 
-  void _downloadDocument() {
-    // La logique de téléchargement sera similaire à celle de list_file.dart
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Téléchargement démarré...')),
-    );
+  Future<void> _downloadDocument() async {
+    if (_document == null || _document!.path.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Erreur: Chemin du fichier non disponible.'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    setState(() {
+      _progress = 0.0;
+    });
+
+    try {
+      final signedUrlResponse = await Supabase.instance.client.storage
+          .from('files')
+          .createSignedUrl(_document!.path, 60); // 1 min de validité
+
+      final fileUrl = signedUrlResponse;
+
+      await FileDownloader.downloadFile(
+        url: fileUrl,
+        name: _document!.name,
+        onProgress: (fileName, progressValue) {
+          setState(() {
+            _progress = progressValue / 100;
+          });
+        },
+        onDownloadCompleted: (filePath) {
+          setState(() {
+            _progress = null;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Fichier téléchargé: $filePath'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        },
+        onDownloadError: (String error) {
+          setState(() {
+            _progress = null;
+          });
+          if (mounted) {
+            print('❌ Erreur téléchargement : $error');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Erreur de téléchargement: $error'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+      );
+    } catch (e) {
+      setState(() {
+        _progress = null;
+      });
+      if (mounted) {
+        print("Erreur de génération d'URL : $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur de création du lien: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _copyLink() async {
