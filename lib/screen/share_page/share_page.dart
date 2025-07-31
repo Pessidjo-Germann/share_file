@@ -2,6 +2,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:share_file_iai/widgets/file_card.dart';
 
 class SharedFoldersPage extends StatefulWidget {
   @override
@@ -139,11 +140,30 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
             // Déterminer si c'est un fichier ou un dossier
             final isFile = data.containsKey('url');
 
-            return ListTile(
-              leading: Icon(isFile ? Icons.insert_drive_file : Icons.folder),
-              title: Text(itemName),
-              subtitle: Text('Partagé par: $sharedByName'),
-            );
+            if (isFile) {
+              // Assurez-vous que la référence parente n'est pas nulle avant d'accéder à son ID
+              final folderId = item.reference.parent.parent?.id;
+              if (folderId == null) {
+                // Gérer le cas où folderId est nul, peut-être logger une erreur ou afficher un widget d'erreur
+                return ListTile(
+                  leading: Icon(Icons.error),
+                  title: Text("Erreur: Impossible de charger ce fichier."),
+                );
+              }
+              return FileCard(
+                fileDoc: item as QueryDocumentSnapshot<Map<String, dynamic>>,
+                folderId: folderId,
+                showActions: false,
+              );
+            } else {
+              // C'est un dossier, utilisez le ListTile existant
+              return ListTile(
+                leading: Icon(Icons.folder),
+                title: Text(itemName),
+                subtitle: Text('Partagé par: $sharedByName'),
+                // Optionnel : Ajoutez un onTap pour naviguer dans les dossiers partagés
+              );
+            }
           },
         );
       },
@@ -151,18 +171,91 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
   }
 }
 
-class _SharedByMeView extends StatelessWidget {
+class _SharedByMeView extends StatefulWidget {
   final String currentUserId;
   final Map<String, String> usersMap;
 
   const _SharedByMeView({required this.currentUserId, required this.usersMap});
 
   @override
+  State<_SharedByMeView> createState() => _SharedByMeViewState();
+}
+
+class _SharedByMeViewState extends State<_SharedByMeView> {
+  Future<void> _deleteFile(QueryDocumentSnapshot file) async {
+    try {
+      final data = file.data() as Map<String, dynamic>;
+      final fileUrl = data['url'] ?? '';
+      final folderId = file.reference.parent.parent?.id;
+
+      if (folderId == null) {
+        throw Exception("Impossible de trouver le dossier parent.");
+      }
+
+      // Supprimer de Firestore
+      await FirebaseFirestore.instance
+          .collection('folder')
+          .doc(folderId)
+          .collection('files')
+          .doc(file.id)
+          .delete();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Fichier supprimé avec succès'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la suppression: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showDeleteConfirmation(QueryDocumentSnapshot file) {
+    final data = file.data() as Map<String, dynamic>;
+    final fileName = data['name'] ?? 'Fichier';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Supprimer le fichier'),
+          content: Text(
+              'Êtes-vous sûr de vouloir supprimer "$fileName" ?\n\nCette action est irréversible.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _deleteFile(file);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Supprimer'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collectionGroup('files')
-          .where('createdBy', isEqualTo: currentUserId)
+          .where('createdBy', isEqualTo: widget.currentUserId)
           .where('sharedWith', isNotEqualTo: []).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -179,15 +272,20 @@ class _SharedByMeView extends StatelessWidget {
           itemCount: files.length,
           itemBuilder: (context, index) {
             final file = files[index];
-            final data = file.data() as Map<String, dynamic>;
-            final fileName = data['name'] ?? 'Fichier sans nom';
-            final sharedWithIds = List<String>.from(data['sharedWith'] ?? []);
-            final sharedWithNames =
-                sharedWithIds.map((id) => usersMap[id] ?? 'ID: $id').join(', ');
-            return ListTile(
-              leading: Icon(Icons.insert_drive_file),
-              title: Text(fileName),
-              subtitle: Text('Partagé avec: $sharedWithNames'),
+            final folderId = file.reference.parent.parent?.id;
+
+            if (folderId == null) {
+              return ListTile(
+                leading: Icon(Icons.error),
+                title: Text("Erreur: Impossible de charger ce fichier."),
+              );
+            }
+
+            return FileCard(
+              fileDoc: file as QueryDocumentSnapshot<Map<String, dynamic>>,
+              folderId: folderId,
+              showActions: true, // Les actions sont visibles
+              onDelete: () => _showDeleteConfirmation(file),
             );
           },
         );

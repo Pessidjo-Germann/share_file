@@ -12,6 +12,7 @@ class FileCard extends StatelessWidget {
   final String folderId;
   final VoidCallback? onDownload;
   final VoidCallback? onDelete;
+  final bool showActions;
 
   const FileCard({
     Key? key,
@@ -19,6 +20,7 @@ class FileCard extends StatelessWidget {
     required this.folderId,
     this.onDownload,
     this.onDelete,
+    this.showActions = true,
   }) : super(key: key);
 
   @override
@@ -76,7 +78,7 @@ class FileCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _buildActionButtons(context),
+                  if (showActions) _buildActionButtons(context),
                 ],
               ),
 
