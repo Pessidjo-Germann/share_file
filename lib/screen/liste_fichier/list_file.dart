@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_file_downloader/flutter_file_downloader.dart';
 import 'package:path/path.dart';
@@ -364,28 +364,24 @@ class _FileListPageState extends State<FileListPage> {
       User? user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      // Créer un chemin de stockage pour le fichier dans Firebase Storage
-      String fileName = basename(file.path);
-      final storageRef =
-          FirebaseStorage.instance.ref().child('uploads/$fileName');
+      final String fileName = basename(file.path);
+      final String supabasePath = 'uploads/${user.uid}/$fileName';
 
-      // Téléverser le fichier avec progression
-      final uploadTask = storageRef.putFile(file);
+      // Upload file to Supabase Storage
+      await Supabase.instance.client.storage.from('files').upload(
+            supabasePath,
+            file,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+            // TODO: Handle progress indicator
+          );
 
-      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-        setState(() {
-          progress = snapshot.bytesTransferred / snapshot.totalBytes;
-        });
-      });
+      final String fileUrl = Supabase.instance.client.storage
+          .from('files')
+          .getPublicUrl(supabasePath);
 
-      final snapshot = await uploadTask.whenComplete(() => null);
-      final fileUrl = await snapshot.ref.getDownloadURL();
+      final fileSize = file.lengthSync();
 
-      // Obtenir les métadonnées du fichier
-      final metadata = await snapshot.ref.getMetadata();
-      final fileSize = metadata.size ?? file.lengthSync();
-
-      // Ajouter les détails du fichier dans Firestore
+      // Add file details to Firestore
       await FirebaseFirestore.instance
           .collection('folder')
           .doc(widget.id)
@@ -396,8 +392,9 @@ class _FileListPageState extends State<FileListPage> {
         'createdBy': user.uid,
         'uploadedAt': FieldValue.serverTimestamp(),
         'fileSize': fileSize,
-        'mimeType': metadata.contentType,
-        'tags': <String>[], // Tags vides par défaut
+        'mimeType': '', // Supabase doesn't easily provide mimeType on upload
+        'tags': <String>[], // Default empty tags
+        'sharedWith': <String>[], // Default empty sharedWith
       });
 
       setState(() {
@@ -405,7 +402,7 @@ class _FileListPageState extends State<FileListPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(_scaffoldKey.currentContext!).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Fichier téléversé avec succès !'),
             backgroundColor: Colors.green,
@@ -418,7 +415,7 @@ class _FileListPageState extends State<FileListPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(_scaffoldKey.currentContext!).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erreur lors du téléversement: $e'),
             backgroundColor: Colors.red,
@@ -463,7 +460,7 @@ class _FileListPageState extends State<FileListPage> {
       final data = file.data() as Map<String, dynamic>;
       final fileUrl = data['url'] ?? '';
 
-      // Supprimer de Firestore
+      // Delete from Firestore
       await FirebaseFirestore.instance
           .collection('folder')
           .doc(widget.id)
@@ -471,18 +468,25 @@ class _FileListPageState extends State<FileListPage> {
           .doc(file.id)
           .delete();
 
-      // Supprimer de Firebase Storage
+      // Delete from Supabase Storage
       if (fileUrl.isNotEmpty) {
         try {
-          final ref = FirebaseStorage.instance.refFromURL(fileUrl);
-          await ref.delete();
+          final bucketName = 'files';
+          final pathStartIndex =
+              fileUrl.indexOf('$bucketName/') + bucketName.length + 1;
+          final supabasePath = fileUrl.substring(pathStartIndex);
+
+          await Supabase.instance.client.storage
+              .from(bucketName)
+              .remove([supabasePath]);
         } catch (e) {
-          print('Erreur lors de la suppression du fichier de Storage: $e');
+          print(
+              'Erreur lors de la suppression du fichier de Supabase Storage: $e');
         }
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(_scaffoldKey.currentContext!).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Fichier supprimé avec succès'),
             backgroundColor: Colors.green,
@@ -491,7 +495,7 @@ class _FileListPageState extends State<FileListPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(_scaffoldKey.currentContext!).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erreur lors de la suppression: $e'),
             backgroundColor: Colors.red,
