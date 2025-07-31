@@ -58,7 +58,8 @@ class _SharedFoldersPageState extends State<SharedFoldersPage> {
             ? Center(child: CircularProgressIndicator())
             : TabBarView(
                 children: [
-                  _SharedWithMeView(currentUserId: currentUserId),
+                  _SharedWithMeView(
+                      currentUserId: currentUserId, usersMap: _usersMap),
                   _SharedByMeView(
                       currentUserId: currentUserId, usersMap: _usersMap),
                 ],
@@ -70,38 +71,43 @@ class _SharedFoldersPageState extends State<SharedFoldersPage> {
 
 class _SharedWithMeView extends StatelessWidget {
   final String currentUserId;
+  final Map<String, String> usersMap;
 
-  const _SharedWithMeView({required this.currentUserId});
+  const _SharedWithMeView(
+      {required this.currentUserId, required this.usersMap});
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('folder')
+          .collectionGroup('files')
           .where('sharedWith', arrayContains: currentUserId)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          debugPrint('Erreur: ${snapshot.error}');
           return Center(child: Text('Erreur: ${snapshot.error}'));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
         }
-        final folders = snapshot.data!.docs;
-        if (folders.isEmpty) {
-          return Center(child: Text('Aucun dossier partagé avec vous.'));
+        final files = snapshot.data!.docs;
+        if (files.isEmpty) {
+          return Center(child: Text('Aucun fichier partagé avec vous.'));
         }
         return ListView.builder(
-          itemCount: folders.length,
+          itemCount: files.length,
           itemBuilder: (context, index) {
-            final folder = folders[index];
-            final data = folder.data() as Map<String, dynamic>;
-            final folderName = data['name'] ?? 'Dossier sans nom';
-            final category = data['category'] ?? 'Aucune catégorie';
+            final file = files[index];
+            final data = file.data() as Map<String, dynamic>;
+            final fileName = data['name'] ?? 'Fichier sans nom';
+            final createdBy = data['createdBy'] ?? '';
+            final sharedByName = usersMap[createdBy] ?? 'Utilisateur inconnu';
+
             return ListTile(
-              leading: Icon(Icons.folder_shared),
-              title: Text(folderName),
-              subtitle: Text('Catégorie: $category'),
+              leading: Icon(Icons.insert_drive_file),
+              title: Text(fileName),
+              subtitle: Text('Partagé par: $sharedByName'),
             );
           },
         );

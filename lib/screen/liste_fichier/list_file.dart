@@ -514,13 +514,15 @@ class _FileListPageState extends State<FileListPage> {
   Future<void> _downloadFile(String url, String fileName) async {
     // The flutter_file_downloader package handles permissions automatically on Android
     // and downloads to the default downloads directory.
+    final encodedUrl = Uri.encodeFull(url);
+
     setState(() {
       _progressText = 'Téléchargement en cours...';
       progress = 0.0;
     });
 
     FileDownloader.downloadFile(
-      url: url,
+      url: encodedUrl,
       name: fileName,
       onProgress: (fileName, progressValue) {
         setState(() {

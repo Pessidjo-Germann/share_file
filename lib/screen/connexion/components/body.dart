@@ -43,8 +43,7 @@ class _BodyState extends State<Body> {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Connexion reussite')));
 
-        // Redirection vers l'écran principal
-        Navigator.pushReplacementNamed(context, '/home');
+        // La redirection est maintenant gérée par le StreamBuilder dans main.dart
       } on FirebaseAuthException catch (e) {
         if (e.code == 'user-not-found') {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

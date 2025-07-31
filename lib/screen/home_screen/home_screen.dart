@@ -11,7 +11,8 @@ import 'package:svg_flutter/svg.dart';
 import 'components/body.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, required this.user});
+  final User user;
   static String routeName = "/home";
 
   @override
@@ -29,11 +30,13 @@ class _HomeScreenState extends State<HomeScreen> {
     // Configurer les notifications reçues en premier plan
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('Message reçu en premier plan: ${message.notification?.title}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message.notification?.body ?? 'Notification reçue'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message.notification?.body ?? 'Notification reçue'),
+          ),
+        );
+      }
     });
   }
 
@@ -41,9 +44,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    User? user = FirebaseAuth.instance.currentUser;
     return Scaffold(
-      body: getBody(user!.uid, "HU"),
+      body: getBody(widget.user.uid, "HU"),
       bottomNavigationBar: getTabs(),
     );
   }
