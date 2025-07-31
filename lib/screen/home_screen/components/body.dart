@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+
 import 'package:share_file_iai/constante.dart';
 import 'package:share_file_iai/screen/home_screen/components/create_folder.dart';
 import 'package:svg_flutter/svg.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'box_document.dart';
 import 'container_widget.dart';
@@ -15,6 +18,41 @@ class Body extends StatefulWidget {
 }
 
 class _BodyState extends State<Body> {
+  String? userName;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUserName();
+  }
+
+  Future<void> fetchUserName() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        setState(() {
+          userName = doc.data()?['name'] ?? widget.name;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          userName = widget.name;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        userName = widget.name;
+        isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -67,12 +105,14 @@ class _BodyState extends State<Body> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          textPresentation(
-                            msg: 'Hello ${widget.name}!',
-                            color: const Color(0xFF2D3436),
-                            fontWeight: FontWeight.w600,
-                            size: 24,
-                          ),
+                          isLoading
+                              ? const CircularProgressIndicator(strokeWidth: 2)
+                              : textPresentation(
+                                  msg: 'Hello ${userName ?? widget.name}!',
+                                  color: const Color(0xFF2D3436),
+                                  fontWeight: FontWeight.w600,
+                                  size: 24,
+                                ),
                           textPresentation(
                             msg: 'Bon retour sur GEDAH',
                             color: const Color(0xFF636E72),

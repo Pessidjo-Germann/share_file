@@ -103,11 +103,20 @@ class _SharedWithMeView extends StatelessWidget {
             final fileName = data['name'] ?? 'Fichier sans nom';
             final createdBy = data['createdBy'] ?? '';
             final sharedByName = usersMap[createdBy] ?? 'Utilisateur inconnu';
+            final sharedWith = data['sharedWith'];
 
             return ListTile(
               leading: Icon(Icons.insert_drive_file),
               title: Text(fileName),
-              subtitle: Text('Partagé par: $sharedByName'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Partagé par: $sharedByName'),
+                  if (sharedWith != null)
+                    Text('Debug sharedWith: ${sharedWith.toString()}',
+                        style: TextStyle(fontSize: 10, color: Colors.grey)),
+                ],
+              ),
             );
           },
         );

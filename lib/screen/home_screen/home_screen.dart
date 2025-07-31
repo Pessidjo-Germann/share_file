@@ -45,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: getBody(widget.user.uid, "HU"),
+      body: getBody(widget.user.uid, widget.user.displayName ?? 'Utilisateur'),
       bottomNavigationBar: getTabs(),
     );
   }
