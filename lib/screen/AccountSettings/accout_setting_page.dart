@@ -71,7 +71,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
-    Navigator.pushReplacementNamed(context, '/login');
   }
 
   @override
@@ -90,53 +89,55 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              _buildProfileHeader(),
-              const SizedBox(height: 30),
-              _buildSettingsCard(
-                icon: Icons.email,
-                title: 'Changer l\'Email',
-                child: Column(
-                  children: [
-                    _buildTextField(
-                      controller: _emailController,
-                      labelText: 'Nouvel Email',
-                      icon: Icons.alternate_email,
-                    ),
-                    const SizedBox(height: 20),
-                    _buildUpdateButton(
-                      onPressed: _updateEmail,
-                      text: 'Mettre à jour l\'email',
-                    ),
-                  ],
+      body: Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                _buildProfileHeader(),
+                const SizedBox(height: 30),
+                _buildSettingsCard(
+                  icon: Icons.email,
+                  title: 'Changer l\'Email',
+                  child: Column(
+                    children: [
+                      _buildTextField(
+                        controller: _emailController,
+                        labelText: 'Nouvel Email',
+                        icon: Icons.alternate_email,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildUpdateButton(
+                        onPressed: _updateEmail,
+                        text: 'Mettre à jour l\'email',
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              _buildSettingsCard(
-                icon: Icons.person,
-                title: 'Changer votre nom',
-                child: Column(
-                  children: [
-                    _buildTextField(
-                      controller: _nameController,
-                      labelText: 'Nouveau nom',
-                      icon: Icons.badge,
-                    ),
-                    const SizedBox(height: 20),
-                    _buildUpdateButton(
-                      onPressed: _updateDisplayName,
-                      text: 'Mettre à jour le nom',
-                    ),
-                  ],
+                const SizedBox(height: 20),
+                _buildSettingsCard(
+                  icon: Icons.person,
+                  title: 'Changer votre nom',
+                  child: Column(
+                    children: [
+                      _buildTextField(
+                        controller: _nameController,
+                        labelText: 'Nouveau nom',
+                        icon: Icons.badge,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildUpdateButton(
+                        onPressed: _updateDisplayName,
+                        text: 'Mettre à jour le nom',
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 30),
-              _buildSignOutButton(),
-            ],
+                const SizedBox(height: 30),
+                _buildSignOutButton(),
+              ],
+            ),
           ),
         ),
       ),
