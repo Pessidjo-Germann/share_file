@@ -293,8 +293,8 @@ class FileCard extends StatelessWidget {
         builder: (context) => DocumentPreviewPage(
           folderId: folderId,
           fileId: fileDoc.id,
-          fileName: fileName,
-          fileUrl: fileUrl,
+          // fileName: fileName,
+          // fileUrl: fileUrl,
         ),
       ),
     );

@@ -6,6 +6,7 @@ import 'package:share_file_iai/services/tag_service.dart';
 import 'package:share_file_iai/widgets/tag_widgets.dart';
 import 'package:share_file_iai/widget/primary_button.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DocumentPreviewPage extends StatefulWidget {
   final String folderId;
@@ -323,7 +324,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
             Icon(Icons.error_outline, color: Colors.orange, size: 48),
             SizedBox(height: 16),
             Text(
-              "Le lien pour ce fichier est invalide ou a expiré.",
+              "Le lien pour ce fichier .",
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16),
             ),

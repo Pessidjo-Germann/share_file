@@ -230,8 +230,8 @@ class _SharedFolderContentPageState extends State<SharedFolderContentPage> {
         builder: (context) => DocumentPreviewPage(
           folderId: widget.id,
           fileId: file.id,
-          fileName: fileName,
-          fileUrl: fileUrl,
+          // fileName: fileName,
+          // fileUrl: fileUrl,
         ),
       ),
     );
