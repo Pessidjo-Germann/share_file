@@ -1,14 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:share_file_iai/constante.dart';
+import 'package:share_file_iai/controller/auth_controler.dart';
 import 'package:share_file_iai/screen/connexion/connexion_screnn.dart';
 import 'package:share_file_iai/screen/inscription/components/confirm_password.dart';
 import 'package:share_file_iai/screen/inscription/components/psd_input.dart';
 import 'package:share_file_iai/widget/bouton_continuer_2.dart';
-import 'package:share_file_iai/widget/toast_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'email_input.dart';
 
@@ -20,7 +17,6 @@ class Body extends StatefulWidget {
 }
 
 class _BodyState extends State<Body> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController emailController = TextEditingController();
   final TextEditingController psdController = TextEditingController();
   final TextEditingController newPsdController = TextEditingController();
@@ -32,46 +28,19 @@ class _BodyState extends State<Body> {
   Widget build(BuildContext context) {
     Future<void> _createAccount() async {
       setState(() {
-        _isLoading = true; // Démarrer l'animation de chargement
+        _isLoading = true;
       });
 
-      try {
-        UserCredential userCredential =
-            await _auth.createUserWithEmailAndPassword(
-          email: emailController.text,
-          password: psdController.text,
-        );
-        // Utiliser l'UID de l'utilisateur comme ID de document
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set({
-          'name': newPsdController.text,
-          'email': emailController.text,
-          'id': userCredential.user!.uid,
-          'createdAt':
-              FieldValue.serverTimestamp(), // Timestamp pour trier les dossiers
-        });
-        // Compte créé avec succès
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Inscription réussite')));
+      await AuthControler().createAccount(
+        emailController.text,
+        psdController.text,
+        newPsdController.text, // this is the name
+        context,
+      );
 
-        // La redirection est gérée par le StreamBuilder dans main.dart
-      } on FirebaseAuthException catch (e) {
-        if (e.code == 'weak-password') {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Le mot de passe est trop faible.')));
-        } else if (e.code == 'email-already-in-use') {
-          //  print('Un compte existe déjà pour cet email.');
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Un compte existe déjà pour cet email.')));
-        }
-      } catch (e) {
-        ToastService.errorMessage(e.toString(), context);
-      } finally {
+      if (mounted) {
         setState(() {
-          _isLoading = false; // Arrêter l'animation de chargement
+          _isLoading = false;
         });
       }
     }
