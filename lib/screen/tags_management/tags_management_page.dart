@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:share_file_iai/models/tag.dart';
 import 'package:share_file_iai/services/tag_service.dart';
 import 'package:share_file_iai/widgets/tag_widgets.dart';
-import 'package:share_file_iai/widget/bouton_continuer_2.dart';
+import 'package:share_file_iai/widget/primary_button.dart';
 import 'package:share_file_iai/screen/tags_statistics/tag_statistics_page.dart';
 
 class TagsManagementPage extends StatefulWidget {
@@ -143,8 +143,7 @@ class _TagsManagementPageState extends State<TagsManagementPage> {
           Row(
             children: [
               Expanded(
-                child: BottonContinuer2(
-                  size: MediaQuery.of(context).size,
+                child: PrimaryButton(
                   press: _editingTagId == null ? _createTag : _updateTag,
                   name: _editingTagId == null ? 'Créer' : 'Modifier',
                 ),
@@ -152,8 +151,7 @@ class _TagsManagementPageState extends State<TagsManagementPage> {
               if (_editingTagId != null) ...[
                 const SizedBox(width: 8),
                 Expanded(
-                  child: BottonContinuer2(
-                    size: MediaQuery.of(context).size,
+                  child: PrimaryButton(
                     press: _cancelEdit,
                     name: 'Annuler',
                     color: Colors.grey,

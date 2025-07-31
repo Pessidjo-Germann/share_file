@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:share_file_iai/screen/connexion/connexion_screnn.dart';
 import 'package:share_file_iai/screen/inscription/components/email_input.dart';
-import 'package:share_file_iai/widget/bouton_continuer_2.dart';
+import 'package:share_file_iai/widget/primary_button.dart';
 
 import '../../inscription/InscriptionScreen.dart';
 import '../../inscription/components/body.dart';
@@ -98,13 +98,14 @@ class _BodyState extends State<Body> {
               controller: emailController,
             ),
             const SizedBox(height: 60),
-            _isLoading?CircularProgressIndicator():
-            BottonContinuer2(
-              size: size,
-              press: () {
-                _sendPasswordResetEmail();
-              }, name: 'Recevoir',
-            ),
+            _isLoading
+                ? CircularProgressIndicator()
+                : PrimaryButton(
+                    press: () {
+                      _sendPasswordResetEmail();
+                    },
+                    name: 'Recevoir',
+                  ),
             const SizedBox(height: 20),
             RowAction(
               label: "Pas encore de compte ?",

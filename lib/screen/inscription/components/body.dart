@@ -6,7 +6,7 @@ import 'package:share_file_iai/constante.dart';
 import 'package:share_file_iai/screen/connexion/connexion_screnn.dart';
 import 'package:share_file_iai/screen/inscription/components/confirm_password.dart';
 import 'package:share_file_iai/screen/inscription/components/psd_input.dart';
-import 'package:share_file_iai/widget/bouton_continuer_2.dart';
+import 'package:share_file_iai/widget/primary_button.dart';
 import 'package:share_file_iai/widget/toast_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -133,8 +133,7 @@ class _BodyState extends State<Body> {
                   const SizedBox(height: 50),
                   _isLoading
                       ? const CircularProgressIndicator()
-                      : BottonContinuer2(
-                          size: size,
+                      : PrimaryButton(
                           press: () {
                             if (globalKey.currentState!.validate()) {
                               _createAccount();
