@@ -19,7 +19,7 @@ class Body extends StatefulWidget {
 
 class _BodyState extends State<Body> {
   final TextEditingController emailController = TextEditingController();
-  FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController psdController = TextEditingController();
   final formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -32,31 +32,36 @@ class _BodyState extends State<Body> {
       });
 
       try {
-        UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        await _auth.signInWithEmailAndPassword(
           email: emailController.text,
           password: psdController.text,
         );
         // Connexion réussie
-        // Une fois connecté, on met isConnect à true
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isConnect', true);
+        if (!mounted) return;
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Connexion reussite')));
 
-        // Redirection vers l'écran principal
-        Navigator.pushReplacementNamed(context, '/home');
+        // La redirection est maintenant gérée par le StreamBuilder dans main.dart
       } on FirebaseAuthException catch (e) {
+        if (!mounted) return;
+        String errorMessage = 'Une erreur est survenue.';
         if (e.code == 'user-not-found') {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Aucun utilisateur trouvé pour cet email.')));
+          errorMessage = 'Aucun utilisateur trouvé pour cet email.';
         } else if (e.code == 'wrong-password') {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Mot de passe incorrect.')));
+          errorMessage = 'Mot de passe incorrect.';
+        } else if (e.code == 'invalid-email') {
+          errorMessage = 'L\'adresse email n\'est pas valide.';
         }
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(errorMessage)));
       } finally {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
 
@@ -114,9 +119,9 @@ class _BodyState extends State<Body> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 100),
+                      const SizedBox(height: 50),
                       _isLoading
-                          ? CircularProgressIndicator()
+                          ? const CircularProgressIndicator()
                           : BottonContinuer2(
                               size: size,
                               press: () {
@@ -126,7 +131,7 @@ class _BodyState extends State<Body> {
                               },
                               name: 'Connectez-vous',
                             ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 24),
                       RowAction(
                         label: "Pas encore de compte ?",
                         label2: "Creez-en-un",

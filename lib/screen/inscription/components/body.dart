@@ -41,21 +41,23 @@ class _BodyState extends State<Body> {
           email: emailController.text,
           password: psdController.text,
         );
-        await FirebaseFirestore.instance.collection('users').add({
+        // Utiliser l'UID de l'utilisateur comme ID de document
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
           'name': newPsdController.text,
+          'email': emailController.text,
           'id': userCredential.user!.uid,
           'createdAt':
               FieldValue.serverTimestamp(), // Timestamp pour trier les dossiers
         });
         // Compte créé avec succès
-        // Une fois connecté, on met isConnect à true
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('isConnect', true);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Inscription réussite')));
 
-        // Redirection vers l'écran principal
-        Navigator.pushReplacementNamed(context, '/home');
+        // La redirection est gérée par le StreamBuilder dans main.dart
       } on FirebaseAuthException catch (e) {
         if (e.code == 'weak-password') {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -128,7 +130,7 @@ class _BodyState extends State<Body> {
                       Spacer(),
                     ],
                   ),
-                  const SizedBox(height: 100),
+                  const SizedBox(height: 50),
                   _isLoading
                       ? const CircularProgressIndicator()
                       : BottonContinuer2(
@@ -140,7 +142,7 @@ class _BodyState extends State<Body> {
                           },
                           name: 'S\'inscrire',
                         ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 24),
                   RowAction(
                     label: "Déjà un compte ?",
                     label2: "Connectez-vous ",
