@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_file_iai/models/document_file.dart';
 import 'package:share_file_iai/models/tag.dart';
 import 'package:share_file_iai/services/tag_service.dart';
@@ -136,10 +137,9 @@ class FileCard extends StatelessWidget {
               ],
 
               // Aperçu pour les images
-              if (documentFile.documentType == DocumentType.image &&
-                  fileUrl.isNotEmpty) ...[
+              if (documentFile.documentType == DocumentType.image) ...[
                 const SizedBox(height: 8),
-                _buildImagePreview(fileUrl),
+                _buildImagePreview(context, data['path'] ?? ''),
               ],
             ],
           ),
@@ -258,27 +258,67 @@ class FileCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImagePreview(String imageUrl) {
-    return Container(
-      height: 120,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        color: Colors.grey[100],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: CachedNetworkImage(
-          imageUrl: imageUrl,
-          fit: BoxFit.cover,
-          placeholder: (context, url) => const Center(
-            child: CircularProgressIndicator(),
-          ),
-          errorWidget: (context, url, error) => const Center(
-            child: Icon(Icons.error, color: Colors.red),
-          ),
+  Widget _buildImagePreview(BuildContext context, String path) {
+    if (path.isEmpty) {
+      return const SizedBox(
+        height: 120,
+        child: Center(
+          child: Text('Aperçu non disponible (chemin manquant)'),
         ),
-      ),
+      );
+    }
+
+    return FutureBuilder<String>(
+      future: Supabase.instance.client.storage
+          .from('files')
+          .createSignedUrl(path, 3600), // URL valide pour 1 heure
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 120,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+          return SizedBox(
+            height: 120,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error, color: Colors.red),
+                  const SizedBox(height: 4),
+                  const Text('Erreur de chargement de l\'aperçu'),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final signedUrl = snapshot.data!;
+        return Container(
+          height: 120,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.grey[100],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: CachedNetworkImage(
+              imageUrl: signedUrl,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              errorWidget: (context, url, error) => const Center(
+                child: Icon(Icons.error, color: Colors.red),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -315,14 +355,13 @@ class FileCard extends StatelessWidget {
   }
 
   void _shareFile(BuildContext context) {
-    final data = fileDoc.data() as Map<String, dynamic>;
-    final fileUrl = data['url'] ?? '';
-
-    // Copier l'URL dans le presse-papiers
+    // La fonctionnalité de partage de lien direct est désactivée car les URL
+    // ne sont pas publiques. Une logique de partage plus avancée est nécessaire.
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Lien copié dans le presse-papiers'),
-        backgroundColor: Colors.green,
+        content: Text(
+            'Le partage de lien direct n\'est pas disponible pour les fichiers privés.'),
+        backgroundColor: Colors.orange,
       ),
     );
   }

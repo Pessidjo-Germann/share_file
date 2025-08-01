@@ -89,46 +89,86 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
   late Stream<QuerySnapshot> _foldersStream;
   final Map<String, double> _downloadProgress = {};
 
-  Future<void> _downloadFile(String url, String fileName, String fileId) async {
-    final encodedUrl = Uri.encodeFull(url);
+  Future<void> _downloadFile(
+      String path, String fileName, String fileId) async {
+    if (path.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erreur: Chemin du fichier non disponible.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
 
-    FileDownloader.downloadFile(
-      url: encodedUrl,
-      name: fileName,
-      onProgress: (fileName, progressValue) {
-        if (mounted) {
-          setState(() {
-            _downloadProgress[fileId] = progressValue / 100;
-          });
-        }
-      },
-      onDownloadCompleted: (path) {
-        if (mounted) {
-          setState(() {
-            _downloadProgress.remove(fileId);
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Fichier téléchargé: $path'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      },
-      onDownloadError: (String error) {
-        if (mounted) {
-          setState(() {
-            _downloadProgress.remove(fileId);
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur de téléchargement: $error'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      },
-    );
+    // Set indeterminate progress while creating the URL
+    if (mounted) {
+      setState(() {
+        _downloadProgress[fileId] = -1; // Use a special value for "generating link"
+      });
+    }
+
+    try {
+      final signedUrlResponse = await Supabase.instance.client.storage
+          .from('files')
+          .createSignedUrl(path, 60); // URL valid for 60 seconds
+
+      if (signedUrlResponse.isEmpty) {
+        throw Exception("L'URL signée est nulle ou vide.");
+      }
+
+      await FileDownloader.downloadFile(
+        url: signedUrlResponse,
+        name: fileName,
+        onProgress: (fileName, progressValue) {
+          if (mounted) {
+            setState(() {
+              _downloadProgress[fileId] = progressValue / 100;
+            });
+          }
+        },
+        onDownloadCompleted: (path) {
+          if (mounted) {
+            setState(() {
+              _downloadProgress.remove(fileId);
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Fichier téléchargé: $path'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        },
+        onDownloadError: (String error) {
+          if (mounted) {
+            setState(() {
+              _downloadProgress.remove(fileId);
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Erreur de téléchargement: $error'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _downloadProgress.remove(fileId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur de création du lien: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -183,7 +223,7 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
                 widget.usersMap[createdBy] ?? 'Utilisateur inconnu';
 
             // Déterminer si c'est un fichier ou un dossier
-            final isFile = data.containsKey('url');
+            final isFile = data.containsKey('path'); // Check for 'path' instead of 'url'
 
             if (isFile) {
               final folderId = item.reference.parent.parent?.id;
@@ -196,7 +236,7 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
               }
 
               final fileId = item.id;
-              final fileUrl = data['url'] ?? '';
+              final filePath = data['path'] ?? ''; // Use 'path'
               final progress = _downloadProgress[fileId];
 
               return Column(
@@ -206,7 +246,7 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
                         item as QueryDocumentSnapshot<Map<String, dynamic>>,
                     folderId: folderId,
                     showActions: true, // Afficher les boutons d'action
-                    onDownload: () => _downloadFile(fileUrl, itemName, fileId),
+                    onDownload: () => _downloadFile(filePath, itemName, fileId),
                   ),
                   if (progress != null)
                     Padding(
@@ -214,12 +254,18 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
                           const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                       child: Column(
                         children: [
-                           LinearProgressIndicator(
-                            value: progress,
-                            backgroundColor: Colors.grey[300],
-                          ),
-                          const SizedBox(height: 4),
-                          Text('${(progress * 100).toStringAsFixed(0)}%'),
+                          if (progress == -1) ...[
+                            const LinearProgressIndicator(),
+                            const SizedBox(height: 4),
+                            const Text('Génération du lien...'),
+                          ] else ...[
+                            LinearProgressIndicator(
+                              value: progress,
+                              backgroundColor: Colors.grey[300],
+                            ),
+                            const SizedBox(height: 4),
+                            Text('${(progress * 100).toStringAsFixed(0)}%'),
+                          ]
                         ],
                       ),
                     ),
@@ -261,55 +307,94 @@ class _SharedByMeView extends StatefulWidget {
   State<_SharedByMeView> createState() => _SharedByMeViewState();
 }
 
-class _SharedByMeViewState extends State<_SharedByMeView> {
+class _SharedByMeView extends State<_SharedByMeView> {
   final Map<String, double> _downloadProgress = {};
 
-  Future<void> _downloadFile(String url, String fileName, String fileId) async {
-    final encodedUrl = Uri.encodeFull(url);
+  Future<void> _downloadFile(
+      String path, String fileName, String fileId) async {
+    if (path.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erreur: Chemin du fichier non disponible.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
 
-    FileDownloader.downloadFile(
-      url: encodedUrl,
-      name: fileName,
-      onProgress: (fileName, progressValue) {
-        if (mounted) {
-          setState(() {
-            _downloadProgress[fileId] = progressValue / 100;
-          });
-        }
-      },
-      onDownloadCompleted: (path) {
-        if (mounted) {
-          setState(() {
-            _downloadProgress.remove(fileId);
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Fichier téléchargé: $path'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      },
-      onDownloadError: (String error) {
-        if (mounted) {
-          setState(() {
-            _downloadProgress.remove(fileId);
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur de téléchargement: $error'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      },
-    );
+    if (mounted) {
+      setState(() {
+        _downloadProgress[fileId] = -1; // Special value for "generating link"
+      });
+    }
+
+    try {
+      final signedUrlResponse = await Supabase.instance.client.storage
+          .from('files')
+          .createSignedUrl(path, 60);
+
+      if (signedUrlResponse.isEmpty) {
+        throw Exception("L'URL signée est nulle ou vide.");
+      }
+
+      await FileDownloader.downloadFile(
+        url: signedUrlResponse,
+        name: fileName,
+        onProgress: (fileName, progressValue) {
+          if (mounted) {
+            setState(() {
+              _downloadProgress[fileId] = progressValue / 100;
+            });
+          }
+        },
+        onDownloadCompleted: (path) {
+          if (mounted) {
+            setState(() {
+              _downloadProgress.remove(fileId);
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Fichier téléchargé: $path'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        },
+        onDownloadError: (String error) {
+          if (mounted) {
+            setState(() {
+              _downloadProgress.remove(fileId);
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Erreur de téléchargement: $error'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _downloadProgress.remove(fileId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur de création du lien: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _deleteFile(QueryDocumentSnapshot file) async {
     try {
       final data = file.data() as Map<String, dynamic>;
-      final fileUrl = data['url'] ?? '';
+      final filePath = data['path'] ?? ''; // Use 'path'
       final folderId = file.reference.parent.parent?.id;
 
       if (folderId == null) {
@@ -408,7 +493,7 @@ class _SharedByMeViewState extends State<_SharedByMeView> {
 
             final fileId = file.id;
             final fileName = data['name'] ?? 'Élément sans nom';
-            final fileUrl = data['url'] ?? '';
+            final filePath = data['path'] ?? ''; // Use 'path'
             final progress = _downloadProgress[fileId];
 
             return Column(
@@ -418,7 +503,7 @@ class _SharedByMeViewState extends State<_SharedByMeView> {
                   folderId: folderId,
                   showActions: true,
                   onDelete: () => _showDeleteConfirmation(file),
-                  onDownload: () => _downloadFile(fileUrl, fileName, fileId),
+                  onDownload: () => _downloadFile(filePath, fileName, fileId),
                 ),
                 if (progress != null)
                   Padding(
@@ -426,12 +511,18 @@ class _SharedByMeViewState extends State<_SharedByMeView> {
                         const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                     child: Column(
                       children: [
-                        LinearProgressIndicator(
-                          value: progress,
-                          backgroundColor: Colors.grey[300],
-                        ),
-                        const SizedBox(height: 4),
-                        Text('${(progress * 100).toStringAsFixed(0)}%'),
+                        if (progress == -1) ...[
+                          const LinearProgressIndicator(),
+                          const SizedBox(height: 4),
+                          const Text('Génération du lien...'),
+                        ] else ...[
+                          LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: Colors.grey[300],
+                          ),
+                          const SizedBox(height: 4),
+                          Text('${(progress * 100).toStringAsFixed(0)}%'),
+                        ]
                       ],
                     ),
                   ),
