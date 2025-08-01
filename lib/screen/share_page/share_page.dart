@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:share_file_iai/screen/shared_folder_content/shared_folder_content_page.dart';
 import 'package:share_file_iai/widgets/file_card.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 class SharedFoldersPage extends StatefulWidget {
   @override
@@ -103,24 +104,20 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
       return;
     }
 
-    // Set indeterminate progress while creating the URL
+    // Set indeterminate progress for download
     if (mounted) {
       setState(() {
-        _downloadProgress[fileId] = -1; // Use a special value for "generating link"
+        _downloadProgress[fileId] = 0.0;
       });
     }
 
     try {
-      final signedUrlResponse = await Supabase.instance.client.storage
+      final publicUrl = Supabase.instance.client.storage
           .from('files')
-          .createSignedUrl(path, 60); // URL valid for 60 seconds
-
-      if (signedUrlResponse.isEmpty) {
-        throw Exception("L'URL signée est nulle ou vide.");
-      }
+          .getPublicUrl(path);
 
       await FileDownloader.downloadFile(
-        url: signedUrlResponse,
+        url: publicUrl,
         name: fileName,
         onProgress: (fileName, progressValue) {
           if (mounted) {
@@ -163,7 +160,7 @@ class __SharedWithMeViewState extends State<_SharedWithMeView> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur de création du lien: $e'),
+            content: Text('Erreur de téléchargement: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -307,7 +304,7 @@ class _SharedByMeView extends StatefulWidget {
   State<_SharedByMeView> createState() => _SharedByMeViewState();
 }
 
-class _SharedByMeView extends State<_SharedByMeView> {
+class _SharedByMeViewState extends State<_SharedByMeView> {
   final Map<String, double> _downloadProgress = {};
 
   Future<void> _downloadFile(
@@ -326,21 +323,17 @@ class _SharedByMeView extends State<_SharedByMeView> {
 
     if (mounted) {
       setState(() {
-        _downloadProgress[fileId] = -1; // Special value for "generating link"
+        _downloadProgress[fileId] = 0.0;
       });
     }
 
     try {
-      final signedUrlResponse = await Supabase.instance.client.storage
+      final publicUrl = Supabase.instance.client.storage
           .from('files')
-          .createSignedUrl(path, 60);
-
-      if (signedUrlResponse.isEmpty) {
-        throw Exception("L'URL signée est nulle ou vide.");
-      }
+          .getPublicUrl(path);
 
       await FileDownloader.downloadFile(
-        url: signedUrlResponse,
+        url: publicUrl,
         name: fileName,
         onProgress: (fileName, progressValue) {
           if (mounted) {
@@ -383,7 +376,7 @@ class _SharedByMeView extends State<_SharedByMeView> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur de création du lien: $e'),
+            content: Text('Erreur de téléchargement: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -394,20 +387,32 @@ class _SharedByMeView extends State<_SharedByMeView> {
   Future<void> _deleteFile(QueryDocumentSnapshot file) async {
     try {
       final data = file.data() as Map<String, dynamic>;
-      final filePath = data['path'] ?? ''; // Use 'path'
+      final path = data['path'] ?? '';
       final folderId = file.reference.parent.parent?.id;
 
       if (folderId == null) {
         throw Exception("Impossible de trouver le dossier parent.");
       }
 
-      // Supprimer de Firestore
+      // Delete from Firestore
       await FirebaseFirestore.instance
           .collection('folder')
           .doc(folderId)
           .collection('files')
           .doc(file.id)
           .delete();
+
+      // Delete from Supabase Storage
+      if (path.isNotEmpty) {
+        try {
+          await Supabase.instance.client.storage.from('files').remove([path]);
+        } catch (e) {
+          print(
+              'Erreur lors de la suppression du fichier de Supabase Storage: $e');
+          // On ne bloque pas même si la suppression du stockage échoue,
+          // car l'essentiel est de le supprimer de la base de données.
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

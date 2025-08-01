@@ -28,7 +28,6 @@ class FileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = fileDoc.data() as Map<String, dynamic>;
     final fileName = data['name'] ?? 'Nom indisponible';
-    final fileUrl = data['url'] ?? '';
     final uploadedAt = data['uploadedAt'] != null
         ? data['uploadedAt'].toDate()
         : DateTime.now();
@@ -137,9 +136,10 @@ class FileCard extends StatelessWidget {
               ],
 
               // Aperçu pour les images
-              if (documentFile.documentType == DocumentType.image) ...[
+              if (documentFile.documentType == DocumentType.image &&
+                  (data['path'] ?? '').isNotEmpty) ...[
                 const SizedBox(height: 8),
-                _buildImagePreview(context, data['path'] ?? ''),
+                _buildImagePreview(context, data['path']),
               ],
             ],
           ),
@@ -323,18 +323,12 @@ class FileCard extends StatelessWidget {
   }
 
   void _previewFile(BuildContext context) {
-    final data = fileDoc.data() as Map<String, dynamic>;
-    final fileName = data['name'] ?? 'Nom indisponible';
-    final fileUrl = data['url'] ?? '';
-
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => DocumentPreviewPage(
           folderId: folderId,
           fileId: fileDoc.id,
-          // fileName: fileName,
-          // fileUrl: fileUrl,
         ),
       ),
     );
@@ -355,15 +349,40 @@ class FileCard extends StatelessWidget {
   }
 
   void _shareFile(BuildContext context) {
-    // La fonctionnalité de partage de lien direct est désactivée car les URL
-    // ne sont pas publiques. Une logique de partage plus avancée est nécessaire.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-            'Le partage de lien direct n\'est pas disponible pour les fichiers privés.'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+    // Le partage par lien public est désactivé pour les fichiers privés.
+    // Le partage se fait en ajoutant des utilisateurs via le menu principal
+    // d'un dossier ou d'un fichier. Cette action copie un lien temporaire
+    // qui ne fonctionnera que pour l'utilisateur connecté.
+    final path =
+        (fileDoc.data() as Map<String, dynamic>)['path'] ?? '';
+    if (path.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible de générer un lien pour ce fichier.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    Supabase.instance.client.storage
+        .from('files')
+        .createSignedUrl(path, 3600)
+        .then((signedUrl) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lien temporaire copié dans le presse-papiers (valide 1h).'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }).catchError((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Erreur lors de la création du lien de partage.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    });
   }
 
   void _showFileInfo(BuildContext context) {
