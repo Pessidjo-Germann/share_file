@@ -630,14 +630,12 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
     });
 
     try {
-      final signedUrlResponse = await Supabase.instance.client.storage
+      final publicUrl = Supabase.instance.client.storage
           .from('files')
-          .createSignedUrl(_document!.path, 60); // 1 min de validité
-
-      final fileUrl = signedUrlResponse;
+          .getPublicUrl(_document!.path);
 
       await FileDownloader.downloadFile(
-        url: fileUrl,
+        url: publicUrl,
         name: _document!.name,
         onProgress: (fileName, progressValue) {
           setState(() {
@@ -677,10 +675,10 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
         _progress = null;
       });
       if (mounted) {
-        print("Erreur de génération d'URL : $e");
+        print("Erreur de téléchargement : $e");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur de création du lien: $e'),
+            content: Text('Erreur de téléchargement: $e'),
             backgroundColor: Colors.red,
           ),
         );

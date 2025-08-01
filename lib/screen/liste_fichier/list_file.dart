@@ -508,33 +508,31 @@ class _FileListPageState extends State<FileListPage> {
     }
 
     setState(() {
-      _progressText = 'Génération du lien de téléchargement...';
-      progress = null; // Indeterminate progress
+      _progressText = 'Téléchargement en cours...';
+      progress = 0.0;
     });
 
     try {
-      final signedUrl = await Supabase.instance.client.storage
+      final publicUrl = Supabase.instance.client.storage
           .from('files')
-          .createSignedUrl(path, 60); // URL valid for 60 seconds
-
-      setState(() {
-        _progressText = 'Téléchargement en cours...';
-      });
+          .getPublicUrl(path);
 
       await FileDownloader.downloadFile(
-        url: signedUrl,
+        url: publicUrl,
         name: fileName,
         onProgress: (fileName, progressValue) {
-          setState(() {
-            progress = progressValue / 100;
-          });
+          if (mounted) {
+            setState(() {
+              progress = progressValue / 100;
+            });
+          }
         },
         onDownloadCompleted: (filePath) {
-          setState(() {
-            progress = null;
-            _progressText = null;
-          });
           if (mounted) {
+            setState(() {
+              progress = null;
+              _progressText = null;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Fichier téléchargé: $filePath'),
@@ -544,11 +542,11 @@ class _FileListPageState extends State<FileListPage> {
           }
         },
         onDownloadError: (String error) {
-          setState(() {
-            progress = null;
-            _progressText = null;
-          });
           if (mounted) {
+            setState(() {
+              progress = null;
+              _progressText = null;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Erreur de téléchargement: $error'),
@@ -559,14 +557,14 @@ class _FileListPageState extends State<FileListPage> {
         },
       );
     } catch (e) {
-      setState(() {
-        progress = null;
-        _progressText = null;
-      });
       if (mounted) {
+        setState(() {
+          progress = null;
+          _progressText = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur de création du lien: $e'),
+            content: Text('Erreur de téléchargement: $e'),
             backgroundColor: Colors.red,
           ),
         );
