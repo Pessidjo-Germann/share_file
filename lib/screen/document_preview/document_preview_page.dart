@@ -8,6 +8,8 @@ import 'package:flutter_file_downloader/flutter_file_downloader.dart';
 import 'package:share_file_iai/widget/primary_button.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class DocumentPreviewPage extends StatefulWidget {
   final String folderId;
@@ -27,7 +29,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
   final DocumentPreviewService _previewService = DocumentPreviewService();
   final TagService _tagService = TagService();
   DocumentFile? _document;
-  String? _signedUrl;
+  String? _fileUrl;
   bool _isLoading = true;
   bool _isEditing = false;
   double? _progress;
@@ -66,12 +68,12 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
         return;
       }
 
-      String? signedUrl;
+      String? fileUrl;
       if (document.path.isNotEmpty) {
         try {
-          signedUrl = await Supabase.instance.client.storage
+          fileUrl = Supabase.instance.client.storage
               .from('files')
-              .createSignedUrl(document.path, 300); // 5 minutes
+              .getPublicUrl(document.path);
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -85,7 +87,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
 
       setState(() {
         _document = document;
-        _signedUrl = signedUrl;
+        _fileUrl = fileUrl;
         _isLoading = false;
         if (document != null) {
           _nameController.text = document.name;
@@ -318,7 +320,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
   }
 
   Widget _buildPreviewContent() {
-    if (_signedUrl == null) {
+    if (_fileUrl == null) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -340,7 +342,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
         return ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Image.network(
-            _signedUrl!,
+            _fileUrl!,
             fit: BoxFit.cover,
             loadingBuilder: (context, child, loadingProgress) {
               if (loadingProgress == null) return child;
@@ -361,46 +363,18 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
         );
 
       case DocumentType.pdf:
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.picture_as_pdf, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              const Text('Document PDF', style: TextStyle(fontSize: 18)),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                onPressed: () => _openDocument(),
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Ouvrir'),
-              ),
-            ],
-          ),
+        return SfPdfViewer.network(
+          _fileUrl!,
+          canShowScrollStatus: true,
+          canShowPaginationDialog: true,
         );
 
       default:
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                _getDocumentIcon(),
-                size: 64,
-                color: Colors.blue,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _document!.documentType.displayName,
-                style: const TextStyle(fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                onPressed: () => _openDocument(),
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Ouvrir'),
-              ),
-            ],
-          ),
+        final previewUrl =
+            'https://docs.google.com/gview?embedded=true&url=${Uri.encodeComponent(_fileUrl!)}';
+        return WebView(
+          initialUrl: previewUrl,
+          javascriptMode: JavascriptMode.unrestricted,
         );
     }
   }
@@ -596,7 +570,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
   }
 
   Future<void> _openDocument() async {
-    if (_signedUrl == null) {
+    if (_fileUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Le lien pour ce fichier est invalide ou a expiré.')),
@@ -604,7 +578,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
       return;
     }
     try {
-      final uri = Uri.parse(_signedUrl!);
+      final uri = Uri.parse(_fileUrl!);
       if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
         throw Exception('Impossible d\'ouvrir le document');
       }
@@ -689,7 +663,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
   }
 
   Future<void> _copyLink() async {
-    if (_signedUrl == null) {
+    if (_fileUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Le lien pour ce fichier est invalide ou a expiré.')),
@@ -697,7 +671,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
       return;
     }
     try {
-      await _previewService.copyDocumentLink(_signedUrl!);
+      await _previewService.copyDocumentLink(_fileUrl!);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lien temporaire copié')),
       );
